@@ -42,14 +42,27 @@ npm install
 
 # Set up environment variables
 cp .env.example .env.local
-# Fill in your API keys and database URL
+# Copy .env.example to .env as well (Prisma reads .env)
+cp .env.example .env
+# Fill in your API keys (Clerk, OpenAI, E2B required for full functionality)
+
+# Start PostgreSQL (Docker)
+docker compose up -d
+
+# Start Inngest Dev Server (optional - for background jobs)
+# Option A: Via Docker (runs with postgres)
+docker compose up -d
+# Option B: Via npx (in a separate terminal)
+npx --ignore-scripts=false inngest-cli@latest dev -u http://localhost:3000/api/inngest
 
 # Set up database
-npx prisma migrate dev # Enter name "init" for migration
+npx prisma migrate dev --name init
 
 # Start development server
 npm run dev
 ```
+
+**Inngest Dashboard:** When running locally, open http://localhost:8288 to view functions, send test events, and inspect runs.
 
 ## Environment Variables
 
@@ -69,10 +82,48 @@ OPENAI_API_KEY="your-openai-api-key"
 # Sandbox (E2B)
 E2B_API_KEY="your-e2b-api-key"
 
-# Background Jobs (Inngest), needed only for production
-INNGEST_EVENT_KEY="your-inngest-event-key"
-INNGEST_SIGNING_KEY="your-inngest-signing-key"
+# Background Jobs (Inngest) - self-hosted locally
+INNGEST_DEV=1
+INNGEST_BASE_URL="http://localhost:8288"
+INNGEST_EVENT_KEY="dev-key"
+INNGEST_SIGNING_KEY="dev-signing-key"
 ```
+
+## Inngest (Self-Hosted / Local)
+
+K2 Vibe uses [Inngest](https://www.inngest.com/) for background jobs (e.g. AI code generation). Inngest is **open source** and can run fully locally—no paid hosted service required.
+
+### Local development
+
+1. **Add to `.env` / `.env.local`:**
+   ```
+   INNGEST_DEV=1
+   INNGEST_BASE_URL="http://localhost:8288"
+   INNGEST_EVENT_KEY="dev-key"
+   INNGEST_SIGNING_KEY="dev-signing-key"
+   ```
+
+2. **Start the Inngest Dev Server** (choose one):
+   - **Docker:** `docker compose up -d` (includes Inngest)
+   - **npx:** `npx --ignore-scripts=false inngest-cli@latest dev -u http://localhost:3000/api/inngest`
+
+3. **Dashboard:** Open http://localhost:8288 to view functions and send test events.
+
+The Dev Server uses dummy keys locally and does not validate them.
+
+### Self-hosted production
+
+For production, run the full Inngest server:
+
+```bash
+# Generate secure keys
+openssl rand -hex 32  # Use for both event-key and signing-key (or generate two)
+
+# Start Inngest
+inngest start --event-key <YOUR_KEY> --signing-key <YOUR_SIGNING_KEY> -u http://your-app-url/api/inngest
+```
+
+Set `INNGEST_DEV=0`, `INNGEST_BASE_URL`, `INNGEST_EVENT_KEY`, and `INNGEST_SIGNING_KEY` in your app to match. See [Inngest self-hosting docs](https://www.inngest.com/docs/self-hosting) for Postgres/Redis and Docker Compose examples.
 
 ## Additional Commands
 

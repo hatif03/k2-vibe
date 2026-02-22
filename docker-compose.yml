@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: k2vibe
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Inngest Dev Server - open source, runs locally, no paid hosting
+  # Dashboard: http://localhost:8288
+  inngest:
+    image: inngest/inngest:latest
+    command: inngest dev -u http://host.docker.internal:3000/api/inngest -u http://host.docker.internal:3001/api/inngest
+    ports:
+      - "8288:8288"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  postgres_data:
