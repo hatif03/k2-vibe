@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { Sandbox } from "@e2b/code-interpreter";
-import { openai, createAgent, createTool, createNetwork, type Tool, type Message, createState } from "@inngest/agent-kit";
+import { createAgent, createTool, createNetwork, type Tool, type Message, createState } from "@inngest/agent-kit";
 
 import { prisma } from "@/lib/db";
+import { k2Think } from "@/lib/k2think";
 import { FRAGMENT_TITLE_PROMPT, PROMPT, RESPONSE_PROMPT } from "@/prompt";
 
 import { inngest } from "./client";
@@ -62,12 +63,7 @@ export const codeAgentFunction = inngest.createFunction(
       name: "code-agent",
       description: "An expert coding agent",
       system: PROMPT,
-      model: openai({ 
-        model: "gpt-4.1",
-        defaultParameters: {
-          temperature: 0.1,
-        },
-      }),
+      model: k2Think(),
       tools: [
         createTool({
           name: "terminal",
@@ -195,18 +191,14 @@ export const codeAgentFunction = inngest.createFunction(
       name: "fragment-title-generator",
       description: "A fragment title generator",
       system: FRAGMENT_TITLE_PROMPT,
-      model: openai({ 
-        model: "gpt-4o",
-      }),
+      model: k2Think(),
     })
 
     const responseGenerator = createAgent({
       name: "response-generator",
       description: "A response generator",
       system: RESPONSE_PROMPT,
-      model: openai({ 
-        model: "gpt-4o",
-      }),
+      model: k2Think(),
     });
 
     const { 

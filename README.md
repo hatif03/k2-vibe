@@ -4,7 +4,7 @@ AI-powered development platform that lets you create web applications by chattin
 
 ## Features
 
-- 🤖 AI-powered code generation with GPT-4 agents
+- 🤖 AI-powered code generation with K2 Think V2 agents
 - 💻 Real-time Next.js application development in E2B sandboxes
 - 🔄 Live preview and code editing with split-pane interface
 - 📁 File explorer with syntax highlighting and code themes
@@ -26,7 +26,7 @@ AI-powered development platform that lets you create web applications by chattin
 - tRPC
 - Prisma ORM
 - PostgreSQL
-- OpenAI GPT-4
+- K2 Think V2 (MBZUAI)
 - E2B Code Interpreter
 - Clerk Authentication
 - Inngest
@@ -44,7 +44,7 @@ npm install
 cp .env.example .env.local
 # Copy .env.example to .env as well (Prisma reads .env)
 cp .env.example .env
-# Fill in your API keys (Clerk, OpenAI, E2B required for full functionality)
+# Fill in your API keys (Clerk, K2 Think, E2B required for full functionality)
 
 # Start PostgreSQL (Docker)
 docker compose up -d
@@ -76,8 +76,8 @@ DATABASE_URL="your-postgres-connection-string"
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="your-clerk-publishable-key"
 CLERK_SECRET_KEY="your-clerk-secret-key"
 
-# AI (OpenAI)
-OPENAI_API_KEY="your-openai-api-key"
+# AI (K2 Think V2 - MBZUAI)
+K2_THINK_API_KEY="your-k2-think-api-key"
 
 # Sandbox (E2B)
 E2B_API_KEY="your-e2b-api-key"
