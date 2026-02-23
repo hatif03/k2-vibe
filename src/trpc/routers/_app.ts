@@ -1,11 +1,12 @@
-import { usageRouter } from '@/modules/usage/server/procedures';
+// BILLING: usageRouter removed. Add back when re-enabling credits/limits.
+// import { usageRouter } from '@/modules/usage/server/procedures';
 import { messagesRouter } from '@/modules/messages/server/procedures';
 import { projectsRouter } from '@/modules/projects/server/procedures';
 
 import { createTRPCRouter } from '../init';
 
 export const appRouter = createTRPCRouter({
-  usage: usageRouter,
+  // usage: usageRouter,
   messages: messagesRouter,
   projects: projectsRouter,
 });

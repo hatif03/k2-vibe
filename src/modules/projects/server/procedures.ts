@@ -4,7 +4,7 @@ import { generateSlug } from "random-word-slugs";
 import { prisma } from "@/lib/db";
 import { TRPCError } from "@trpc/server";
 import { inngest } from "@/inngest/client";
-import { consumeCredits } from "@/lib/usage";
+// import { consumeCredits } from "@/lib/usage"; // BILLING: Uncomment to enforce credit limits
 import { protectedProcedure, createTRPCRouter } from "@/trpc/init";
 
 export const projectsRouter = createTRPCRouter({
@@ -48,18 +48,19 @@ export const projectsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      try {
-        await consumeCredits();
-      } catch (error) {
-        if (error instanceof Error) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Something went wrong" });
-        } else {
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: "You have run out of credits"
-          });
-        }
-      }
+      // --- BILLING: Credit check disabled. Uncomment to enforce limits. ---
+      // try {
+      //   await consumeCredits();
+      // } catch (error) {
+      //   if (error instanceof Error) {
+      //     throw new TRPCError({ code: "BAD_REQUEST", message: "Something went wrong" });
+      //   } else {
+      //     throw new TRPCError({
+      //       code: "TOO_MANY_REQUESTS",
+      //       message: "You have run out of credits"
+      //     });
+      //   }
+      // }
 
       const createdProject = await prisma.project.create({
         data: {
