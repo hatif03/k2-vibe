@@ -1,5 +1,5 @@
 {
-  "name": "vibe",
+  "name": "k2-vibe",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:migrate": "dotenv -e .env.local -- prisma migrate deploy",
+    "db:generate": "dotenv -e .env.local -- prisma generate",
+    "db:push": "dotenv -e .env.local -- prisma db push",
+    "e2b:build": "npx tsx sandbox-templates/nextjs/build.prod.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.23.0",
@@ -76,6 +80,8 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
+    "dotenv-cli": "^8.0.0",
+    "e2b": "^2.6.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

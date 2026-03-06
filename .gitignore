@@ -1,1 +1,10 @@
 node_modules
+.next
+
+# Environment variables (contain secrets)
+.env
+.env.local
+.env.*.local
+
+# clerk configuration (can include secrets)
+/.clerk/
