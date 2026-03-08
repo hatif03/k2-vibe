@@ -9,6 +9,14 @@ import { inngest } from "./client";
 import { SANDBOX_TIMEOUT } from "./types";
 import { getSandbox, lastAssistantTextMessageContent, parseAgentOutput } from "./utils";
 
+const k2ThinkModel = () =>
+  openai({
+    model: "MBZUAI-IFM/K2-Think-v2",
+    baseUrl: "https://api.k2think.ai/v1/",
+    apiKey: process.env.K2_THINK_API_KEY,
+    defaultParameters: { temperature: 0.1 },
+  });
+
 interface AgentState {
   summary: string;
   files: { [path: string]: string };
@@ -62,12 +70,7 @@ export const codeAgentFunction = inngest.createFunction(
       name: "code-agent",
       description: "An expert coding agent",
       system: PROMPT,
-      model: openai({ 
-        model: "gpt-4.1",
-        defaultParameters: {
-          temperature: 0.1,
-        },
-      }),
+      model: k2ThinkModel(),
       tools: [
         createTool({
           name: "terminal",
@@ -195,18 +198,14 @@ export const codeAgentFunction = inngest.createFunction(
       name: "fragment-title-generator",
       description: "A fragment title generator",
       system: FRAGMENT_TITLE_PROMPT,
-      model: openai({ 
-        model: "gpt-4o",
-      }),
+      model: k2ThinkModel(),
     })
 
     const responseGenerator = createAgent({
       name: "response-generator",
       description: "A response generator",
       system: RESPONSE_PROMPT,
-      model: openai({ 
-        model: "gpt-4o",
-      }),
+      model: k2ThinkModel(),
     });
 
     const { 
