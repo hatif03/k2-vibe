@@ -52,17 +52,18 @@ export const messagesRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
       }
 
+      let userApiKey: string | undefined;
       try {
-        await consumeCredits();
+        const result = await consumeCredits();
+        userApiKey = result.userApiKey;
       } catch (error) {
-        if (error instanceof Error) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Something went wrong" });
-        } else {
+        if (error instanceof Error && error.message === "TOO_MANY_REQUESTS") {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
-            message: "You have run out of credits"
+            message: "You have run out of credits. Add your API key in settings to continue.",
           });
         }
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Something went wrong" });
       }
 
       const createdMessage = await prisma.message.create({
@@ -79,6 +80,7 @@ export const messagesRouter = createTRPCRouter({
         data: {
           value: input.value,
           projectId: input.projectId,
+          userApiKey,
         },
       });
 

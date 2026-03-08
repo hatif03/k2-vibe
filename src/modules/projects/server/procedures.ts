@@ -48,17 +48,18 @@ export const projectsRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      let userApiKey: string | undefined;
       try {
-        await consumeCredits();
+        const result = await consumeCredits();
+        userApiKey = result.userApiKey;
       } catch (error) {
-        if (error instanceof Error) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Something went wrong" });
-        } else {
+        if (error instanceof Error && error.message === "TOO_MANY_REQUESTS") {
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
-            message: "You have run out of credits"
+            message: "You have run out of credits. Add your API key in settings to continue.",
           });
         }
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Something went wrong" });
       }
 
       const createdProject = await prisma.project.create({
@@ -82,6 +83,7 @@ export const projectsRouter = createTRPCRouter({
         data: {
           value: input.value,
           projectId: createdProject.id,
+          userApiKey,
         },
       });
 

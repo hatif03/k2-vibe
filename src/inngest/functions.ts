@@ -9,12 +9,17 @@ import { inngest } from "./client";
 import { SANDBOX_TIMEOUT } from "./types";
 import { getSandbox, lastAssistantTextMessageContent, parseAgentOutput } from "./utils";
 
-const k2ThinkModel = () =>
+const k2ThinkModel = (apiKey?: string) =>
   openai({
     model: "MBZUAI-IFM/K2-Think-v2",
     baseUrl: "https://api.k2think.ai/v1/",
-    apiKey: process.env.K2_THINK_API_KEY,
-    defaultParameters: { temperature: 0.1 },
+    apiKey: apiKey ?? process.env.K2_THINK_API_KEY,
+    defaultParameters: {
+      temperature: 0.1,
+      // Prevent truncation: model hit 64K limit (finish_reason: "length"), causing
+      // missing <task_summary> and malformed output. Cap output so responses complete.
+      max_completion_tokens: 32768,
+    },
   });
 
 interface AgentState {
@@ -26,6 +31,8 @@ export const codeAgentFunction = inngest.createFunction(
   { id: "code-agent" },
   { event: "code-agent/run" },
   async ({ event, step }) => {
+    const userApiKey = event.data.userApiKey as string | undefined;
+
     const sandboxId = await step.run("get-sandbox-id", async () => {
       const sandbox = await Sandbox.create(process.env.E2B_TEMPLATE_ID ?? "k2-vibe-nextjs");
       await sandbox.setTimeout(SANDBOX_TIMEOUT);
@@ -70,7 +77,7 @@ export const codeAgentFunction = inngest.createFunction(
       name: "code-agent",
       description: "An expert coding agent",
       system: PROMPT,
-      model: k2ThinkModel(),
+      model: k2ThinkModel(userApiKey),
       tools: [
         createTool({
           name: "terminal",
@@ -198,14 +205,14 @@ export const codeAgentFunction = inngest.createFunction(
       name: "fragment-title-generator",
       description: "A fragment title generator",
       system: FRAGMENT_TITLE_PROMPT,
-      model: k2ThinkModel(),
+      model: k2ThinkModel(userApiKey),
     })
 
     const responseGenerator = createAgent({
       name: "response-generator",
       description: "A response generator",
       system: RESPONSE_PROMPT,
-      model: k2ThinkModel(),
+      model: k2ThinkModel(userApiKey),
     });
 
     const { 

@@ -54,7 +54,7 @@ export const ProjectForm = () => {
       }
 
       if (error.data?.code === "TOO_MANY_REQUESTS") {
-        router.push("/pricing");
+        router.push("/settings");
       }
     },
   }));

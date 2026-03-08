@@ -53,7 +53,7 @@ export const MessageForm = ({ projectId }: Props) => {
       toast.error(error.message);
 
       if (error.data?.code === "TOO_MANY_REQUESTS") {
-        router.push("/pricing");
+        router.push("/settings");
       }
     },
   }));
