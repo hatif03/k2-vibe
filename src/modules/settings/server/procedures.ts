@@ -37,4 +37,34 @@ export const settingsRouter = createTRPCRouter({
     });
     return { success: true };
   }),
+
+  hasVercelToken: protectedProcedure.query(async ({ ctx }) => {
+    const client = await clerkClient();
+    const user = await client.users.getUser(ctx.auth.userId);
+    const key = user.privateMetadata?.vercelToken;
+    return typeof key === "string" && key.length > 0;
+  }),
+
+  setVercelToken: protectedProcedure
+    .input(z.object({ token: z.string().min(1, { message: "Token is required" }) }))
+    .mutation(async ({ ctx, input }) => {
+      const client = await clerkClient();
+      const user = await client.users.getUser(ctx.auth.userId);
+      const meta = (user.privateMetadata ?? {}) as Record<string, unknown>;
+      await client.users.updateUser(ctx.auth.userId, {
+        privateMetadata: { ...meta, vercelToken: input.token },
+      });
+      return { success: true };
+    }),
+
+  removeVercelToken: protectedProcedure.mutation(async ({ ctx }) => {
+    const client = await clerkClient();
+    const user = await client.users.getUser(ctx.auth.userId);
+    const meta = (user.privateMetadata ?? {}) as Record<string, unknown>;
+    delete meta.vercelToken;
+    await client.users.updateUser(ctx.auth.userId, {
+      privateMetadata: meta,
+    });
+    return { success: true };
+  }),
 });

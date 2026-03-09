@@ -5,13 +5,14 @@ import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import TextareaAutosize from "react-textarea-autosize";
-import { ArrowUpIcon, Loader2Icon } from "lucide-react";
+import { ArrowUpIcon, ListOrderedIcon, Loader2Icon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Form, FormField } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 
 import { Usage } from "./usage";
 
@@ -59,13 +60,17 @@ export const MessageForm = ({ projectId }: Props) => {
   }));
   
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const content = planMode
+      ? `[Plan mode: First output a brief numbered plan of steps you'll take, then execute them.]\n\n${values.value}`
+      : values.value;
     await createMessage.mutateAsync({
-      value: values.value,
+      value: content,
       projectId,
     });
   };
   
   const [isFocused, setIsFocused] = useState(false);
+  const [planMode, setPlanMode] = useState(false);
   const isPending = createMessage.isPending;
   const isButtonDisabled = isPending || !form.formState.isValid;
   const showUsage = !!usage;
@@ -109,11 +114,29 @@ export const MessageForm = ({ projectId }: Props) => {
           )}
         />
         <div className="flex gap-x-2 items-end justify-between pt-2">
-          <div className="text-[10px] text-muted-foreground font-mono">
-            <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-              <span>&#8984;</span>Enter
-            </kbd>
-            &nbsp;to submit
+          <div className="flex items-center gap-x-3">
+            <label
+              className={cn(
+                "flex items-center gap-x-2 cursor-pointer text-[10px] transition-colors rounded-md px-2 py-1 -ml-2",
+                planMode
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground"
+              )}
+            >
+              <Switch
+                checked={planMode}
+                onCheckedChange={setPlanMode}
+                className={cn("scale-75", planMode && "data-[state=checked]:bg-primary")}
+              />
+              <ListOrderedIcon className="size-3.5" />
+              <span className="font-medium">{planMode ? "Plan mode" : "Plan first"}</span>
+            </label>
+            <span className="text-[10px] text-muted-foreground font-mono">
+              <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                <span>&#8984;</span>Enter
+              </kbd>
+              &nbsp;to submit
+            </span>
           </div>
           <Button
             disabled={isButtonDisabled}

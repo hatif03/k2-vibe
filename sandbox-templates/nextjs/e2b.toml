@@ -1,7 +1,0 @@
-# This is a config for E2B sandbox template.
-# Build with: e2b template build -p sandbox-templates/nextjs -n k2-vibe-nextjs
-# Use template name or ID to create a sandbox: Sandbox.create("k2-vibe-nextjs")
-
-start_cmd = "/compile_page.sh"
-dockerfile = "e2b.Dockerfile"
-template_name = "k2-vibe-nextjs"

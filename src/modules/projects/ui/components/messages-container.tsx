@@ -2,11 +2,11 @@ import { useEffect, useRef } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { useTRPC } from "@/trpc/client";
-import { Fragment } from "@/generated/prisma";
+import type { Fragment } from "@prisma/client";
 
 import { MessageCard } from "./message-card";
 import { MessageForm } from "./message-form";
-import { MessageLoading } from "./message-loading";
+import { AgentRunner } from "./agent-runner";
 
 interface Props {
   projectId: string;
@@ -14,20 +14,21 @@ interface Props {
   setActiveFragment: (fragment: Fragment | null) => void;
 };
 
-export const MessagesContainer = ({ 
+export const MessagesContainer = ({
   projectId,
   activeFragment,
-  setActiveFragment
+  setActiveFragment,
 }: Props) => {
   const trpc = useTRPC();
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageIdRef = useRef<string | null>(null);
 
-  const { data: messages } = useSuspenseQuery(trpc.messages.getMany.queryOptions({
-    projectId: projectId,
-  }, {
-    refetchInterval: 2000,
-  }));
+  const { data: messages } = useSuspenseQuery(
+    trpc.messages.getMany.queryOptions(
+      { projectId },
+      { refetchInterval: 2000 }
+    )
+  );
 
   useEffect(() => {
     const lastAssistantMessage = messages.findLast(
@@ -50,6 +51,12 @@ export const MessagesContainer = ({
   const lastMessage = messages[messages.length - 1];
   const isLastMessageUser = lastMessage?.role === "USER";
 
+  const uiMessages = messages.map((m) => ({
+    id: m.id,
+    role: m.role,
+    content: m.content,
+  }));
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 min-h-0 overflow-y-auto">
@@ -66,7 +73,13 @@ export const MessagesContainer = ({
               type={message.type}
             />
           ))}
-          {isLastMessageUser && <MessageLoading />}
+          {messages.length > 0 && (
+            <AgentRunner
+              projectId={projectId}
+              messages={uiMessages}
+              isLastMessageUser={isLastMessageUser}
+            />
+          )}
           <div ref={bottomRef} />
         </div>
       </div>

@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -22,6 +21,17 @@ model Project {
   updatedAt DateTime @updatedAt
 
   messages Message[]
+  shares Share[]
+}
+
+model Share {
+  id  String @id @default(uuid())
+  slug String @unique
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([slug])
 }
 
 enum MessageRole {

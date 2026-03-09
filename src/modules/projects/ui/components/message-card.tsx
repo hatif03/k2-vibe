@@ -4,7 +4,7 @@ import { ChevronRightIcon, Code2Icon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
-import { Fragment, MessageRole, MessageType } from "@/generated/prisma";
+import type { Fragment, MessageRole, MessageType } from "@prisma/client";
 
 interface UserMessageProps {
   content: string;
