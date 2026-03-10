@@ -94,6 +94,7 @@ export const MessagesContainer = ({
               projectId={projectId}
               messages={uiMessages}
               isLastMessageUser={isLastMessageUser}
+              activeFragment={activeFragment}
               retryRequested={retryRequested}
               onRetryComplete={() => setRetryRequested(false)}
             />

@@ -121,7 +121,7 @@ export async function POST(req: Request) {
       },
     });
   } else {
-    await prisma.message.create({
+    const message = await prisma.message.create({
       data: {
         projectId,
         content,
@@ -135,7 +135,12 @@ export async function POST(req: Request) {
           },
         },
       },
+      include: { fragment: true },
     });
+    return new Response(
+      JSON.stringify({ ok: true, fragmentId: message.fragment?.id }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   return new Response(JSON.stringify({ ok: true }), {

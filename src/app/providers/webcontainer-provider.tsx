@@ -15,6 +15,8 @@ import {
   mountAndStartDevServer,
   mountFilesAndStartDevServer,
 } from "@/lib/webcontainer";
+import { fixImportPathsInFiles } from "@/lib/fix-import-paths";
+import { TEMPLATE_FILES } from "@/lib/template-flatten";
 
 type WebContainerState =
   | { status: "idle" }
@@ -70,9 +72,13 @@ export function WebContainerProvider({
       return bootPromiseRef.current;
     }
 
-    const filesToMount =
+    const rawFiles =
       files ??
       (initialFiles && Object.keys(initialFiles).length > 0 ? initialFiles : undefined);
+    const filesToMount =
+      rawFiles && Object.keys(rawFiles).length > 0
+        ? { ...TEMPLATE_FILES, ...fixImportPathsInFiles(rawFiles) }
+        : undefined;
 
     const promise = (async () => {
       setState({ status: "booting" });

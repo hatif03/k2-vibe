@@ -39,6 +39,7 @@ export function PreviewPanel({ fragment }: Props) {
   };
 
   if (isError && wc.state.status === "error") {
+    const isOom = /memory|wasm|out of memory/i.test(wc.state.error);
     return (
       <div className="flex flex-col w-full h-full items-center justify-center p-8 text-center">
         <p className="text-destructive font-medium">WebContainer failed to start</p>
@@ -46,7 +47,9 @@ export function PreviewPanel({ fragment }: Props) {
           {wc.state.error}
         </p>
         <p className="text-xs text-muted-foreground mt-4">
-          Try Chrome or Edge. WebContainer requires a supported browser.
+          {isOom
+            ? "Close other tabs or StackBlitz projects, then refresh the page to free memory."
+            : "Try Chrome or Edge. WebContainer requires a supported browser."}
         </p>
       </div>
     );

@@ -6,11 +6,12 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 import { useWebContainerOptional } from "@/app/providers/webcontainer-provider";
-import { useAgentStatus, useSetAgentStatus, useAgentSteps } from "@/app/providers/agent-status-provider";
-import { useAgentGenerate, MAX_FIX_RETRIES } from "@/hooks/use-agent-generate";
+import { useAgentStatus, useSetAgentStatus, useAgentSteps, useSetAgentTriggerFix } from "@/app/providers/agent-status-provider";
+import { useAgentGenerate } from "@/hooks/use-agent-generate";
 import { useTRPC } from "@/trpc/client";
 
 import { MessageLoading } from "./message-loading";
+import type { Fragment } from "@prisma/client";
 
 const THINKING_TIMEOUT_MS = 45_000;
 
@@ -18,6 +19,7 @@ interface Props {
   projectId: string;
   messages: Array<{ id: string; role: string; content: string }>;
   isLastMessageUser: boolean;
+  activeFragment: Fragment | null;
   retryRequested?: boolean;
   onRetryComplete?: () => void;
 }
@@ -26,6 +28,7 @@ export function AgentRunner({
   projectId,
   messages,
   isLastMessageUser,
+  activeFragment,
   retryRequested = false,
   onRetryComplete,
 }: Props) {
@@ -38,6 +41,7 @@ export function AgentRunner({
   const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
 
   const setAgentStatus = useSetAgentStatus();
+  const setTriggerFix = useSetAgentTriggerFix();
   const { agentStatus } = useAgentStatus();
   const { addStep, clearSteps } = useAgentSteps();
   const getWebContainerWhenReady = useCallback(() => {
@@ -45,12 +49,16 @@ export function AgentRunner({
     return wc.getWebContainerWhenReady();
   }, [wc]);
 
-  const { status, fixAttempt, runAgent } = useAgentGenerate({
+  const { status, fixAttempt, runAgent, runFixForExistingProject } = useAgentGenerate({
     projectId,
     messages,
     boot: wc?.boot ?? (() => Promise.resolve(null)),
     getWebContainerWhenReady,
     getTerminalOutput: () => wc?.terminalOutput ?? "",
+    getPreviewUrl: () =>
+      wc?.state?.status === "ready" && "previewUrl" in wc.state
+        ? (wc.state as { previewUrl: string }).previewUrl
+        : null,
     onStep: addStep,
     onSaved: () => {
       queryClient.invalidateQueries(
@@ -111,6 +119,28 @@ export function AgentRunner({
     }
   }, [isLastMessageUser, messages]);
 
+  // Register triggerFix for manual "Fix errors" button (TerminalPanel)
+  const triggerFixRef = useRef<() => void | null>(null);
+  const hasFragment =
+    activeFragment?.id &&
+    activeFragment?.files &&
+    typeof activeFragment.files === "object" &&
+    Object.keys(activeFragment.files as Record<string, string>).length > 0;
+  triggerFixRef.current = hasFragment
+    ? () => {
+        const lastUserMsg = messages.findLast((m) => m.role === "USER")?.content ?? "";
+        const files = activeFragment!.files as Record<string, string>;
+        runFixForExistingProject(activeFragment!.id, files, lastUserMsg);
+      }
+    : null;
+
+  useEffect(() => {
+    setTriggerFix(hasFragment ? () => () => triggerFixRef.current?.() : null);
+    return () => setTriggerFix(null);
+  }, [hasFragment, activeFragment?.id ?? null, setTriggerFix]);
+
+  // No auto-fix: user manually clicks "Fix errors automatically" in Terminal when needed.
+
   // Timeout when agent is stuck "building" for too long (streaming/submitted)
   const isWaitingForAgent = status === "streaming" || status === "submitted";
   useEffect(() => {
@@ -124,7 +154,9 @@ export function AgentRunner({
     return () => clearTimeout(timer);
   }, [isWaitingForAgent, wc?.state.status]);
 
-  if (!isLastMessageUser) return null;
+  // Show loading when fixing (manual "Fix errors" or fix loop from initial build)
+  const isFixing = !isLastMessageUser && (status === "streaming" || fixAttempt > 0);
+  if (!isLastMessageUser && !isFixing) return null;
 
   // WebContainer failed: show inline error with retry instead of "Thinking..."
   if (wc?.state.status === "error") {
@@ -143,7 +175,7 @@ export function AgentRunner({
     wc?.state.status === "booting" || wc?.state.status === "mounting"
       ? "Starting environment..."
       : fixAttempt > 0
-        ? `Fixing issues… (attempt ${fixAttempt} of ${MAX_FIX_RETRIES})`
+        ? `Fixing issues… (attempt ${fixAttempt})`
         : status === "streaming" || status === "submitted"
           ? "Building..."
           : "Thinking...";

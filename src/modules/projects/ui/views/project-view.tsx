@@ -23,7 +23,6 @@ import { ProjectHeader } from "../components/project-header";
 import { MessagesContainer } from "../components/messages-container";
 import { WebContainerProvider } from "@/app/providers/webcontainer-provider";
 import { AgentStatusProvider, useAgentStatus } from "@/app/providers/agent-status-provider";
-import { MAX_FIX_RETRIES } from "@/hooks/use-agent-generate";
 import { ErrorBoundary } from "react-error-boundary";
 
 interface Props {
@@ -37,7 +36,7 @@ function AgentStatusBanner() {
   const isFixing = fixAttempt > 0;
   const message =
     isFixing
-      ? `Agent is fixing issues (attempt ${fixAttempt} of ${MAX_FIX_RETRIES})`
+      ? `Agent is fixing issues (attempt ${fixAttempt})`
       : status === "submitted"
         ? "Agent is thinking..."
         : "Agent is building...";

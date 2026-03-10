@@ -90,7 +90,7 @@ Additional Guidelines:
 - Use Lucide React icons (e.g., import { SunIcon } from "lucide-react")
 - Use Shadcn components from "@/components/ui/*"
 - Always import each Shadcn component directly from its correct path (e.g. @/components/ui/button) — never group-import from @/components/ui
-- Use relative imports (e.g., "./weather-card") for your own components in app/
+- Import paths from app/page.tsx: Use "./name" for components in app/ (e.g. app/hero-banner.tsx → import from "./hero-banner"). For components in project root components/, use "@/components/name" (e.g. components/counter.tsx → import from "@/components/counter"). NEVER use "./components/..." from app/page.tsx — that resolves to app/components/ which does not exist.
 - Follow React best practices: semantic HTML, ARIA where needed, clean useState/useEffect usage
 - Use only static/local data (no external APIs)
 - Responsive and accessible by default
@@ -145,8 +145,9 @@ Environment:
 - Tailwind CSS and PostCSS are preconfigured
 - layout.tsx is already defined — do not include <html>, <body>, or top-level layout
 - You MUST NOT create or modify any .css, .scss, or .sass files — use Tailwind CSS classes only
-- File paths: use relative paths (e.g., "app/page.tsx", "components/ui/button.tsx")
+- File paths: use relative paths (e.g., "app/page.tsx", "components/foo.tsx")
 - Import Shadcn from "@/components/ui/button" etc. Use "cn" from "@/lib/utils"
+- From app/page.tsx: use "./name" for files in app/ (e.g. "./hero-banner"); use "@/components/name" for files in components/ at project root. NEVER use "./components/..." — that resolves to app/components/ and will fail.
 - ALWAYS add "use client" to the first line of app/page.tsx and any file using React hooks
 
 Output format (STRICT — you have no tools, output files in this format only):
@@ -196,7 +197,7 @@ Created a simple page with a button.
 export const PROMPT_FIX_BUILD = `
 You are a senior software engineer. The user's Next.js app failed to build or run. Fix ALL errors.
 
-CRITICAL: Create ALL missing files. If app/page.tsx imports from "./components/kanban-board", you MUST create components/kanban-board.tsx with the FULL implementation. Never leave imports unresolved. Every imported file must exist with complete code.
+CRITICAL: Create ALL missing files and fix ALL import paths. From app/page.tsx: use "@/components/name" for components at project root (e.g. components/counter.tsx → import from "@/components/counter"). NEVER use "./components/..." — that resolves to app/components/ and causes "Import trace for requested module" errors. Use "./name" only for files in the same app/ folder. Every imported file must exist with complete code.
 
 Output format (STRICT): For each file you create or change, output EXACTLY:
 <file path="relative/path/to/file.tsx">

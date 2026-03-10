@@ -8,6 +8,7 @@ import {
 } from "ai";
 import type { WebContainer } from "@webcontainer/api";
 
+import { fixImportPaths } from "@/lib/fix-import-paths";
 import { parseFileBlocks } from "@/lib/parse-file-blocks";
 
 type AgentTool = "terminal" | "writeFiles" | "readFiles" | "listDir" | "searchFiles";
@@ -47,6 +48,7 @@ async function runWriteFiles(
   accumulatedFiles: Record<string, string>
 ): Promise<string> {
   for (const { path, content } of files) {
+    const fixedContent = fixImportPaths(content);
     const fullPath = ensurePath(path);
     const dir = fullPath.split("/").slice(0, -1).join("/");
     if (dir) {
@@ -56,8 +58,8 @@ async function runWriteFiles(
         // dir may exist
       }
     }
-    await wc.fs.writeFile(fullPath, content);
-    accumulatedFiles[path] = content;
+    await wc.fs.writeFile(fullPath, fixedContent);
+    accumulatedFiles[path] = fixedContent;
   }
   return `Wrote ${files.length} file(s)`;
 }
