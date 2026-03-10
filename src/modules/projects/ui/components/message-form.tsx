@@ -32,6 +32,7 @@ export const MessageForm = ({ projectId }: Props) => {
   const queryClient = useQueryClient();
 
   const { data: usage } = useQuery(trpc.usage.status.queryOptions());
+  const { data: hasApiKey } = useQuery(trpc.settings.hasApiKey.queryOptions());
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -73,7 +74,7 @@ export const MessageForm = ({ projectId }: Props) => {
   const [planMode, setPlanMode] = useState(false);
   const isPending = createMessage.isPending;
   const isButtonDisabled = isPending || !form.formState.isValid;
-  const showUsage = !!usage;
+  const showUsage = !!usage && !hasApiKey;
 
   return (
     <Form {...form}>

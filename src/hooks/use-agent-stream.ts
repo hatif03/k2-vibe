@@ -8,6 +8,8 @@ import {
 } from "ai";
 import type { WebContainer } from "@webcontainer/api";
 
+import { parseFileBlocks } from "@/lib/parse-file-blocks";
+
 type AgentTool = "terminal" | "writeFiles" | "readFiles" | "listDir" | "searchFiles";
 
 function ensurePath(path: string): string {
@@ -242,18 +244,44 @@ export function useAgentStream({
         isError: boolean;
       }) => {
         if (isError) {
+          if (process.env.NODE_ENV === "development") {
+            console.log("[useAgentStream] onFinish isError=true");
+          }
           onError?.("Something went wrong. Please try again.");
           return;
         }
         const textPart = message.parts.find((p: { type: string }) => p.type === "text");
         const text = textPart && "text" in textPart ? (textPart.text ?? "") : "";
-        const match = text.match(/<task_summary>([\s\S]*?)<\/task_summary>/);
-        const taskSummary = match?.[1]?.trim() ?? (text.trim() || "Completed");
-        const files = { ...filesRef.current };
+        const taskMatch = text.match(/<task_summary>([\s\S]*?)<\/task_summary>/);
+        const taskSummary = taskMatch?.[1]?.trim() ?? (text.trim() || "Completed");
+        // Merge tool-written files with parsed single-shot file blocks (K2 Think)
+        const parsedFiles = parseFileBlocks(text);
+        const files = { ...filesRef.current, ...parsedFiles };
+        if (process.env.NODE_ENV === "development") {
+          console.log("[useAgentStream] onFinish success", {
+            taskSummary: !!taskMatch?.[1],
+            filesFromTools: Object.keys(filesRef.current).length,
+            filesFromParse: Object.keys(parsedFiles).length,
+          });
+        }
 
         if (Object.keys(files).length === 0 && !taskSummary) {
           onError?.("No output generated. Please try again.");
           return;
+        }
+
+        // Write parsed files to WebContainer so preview updates (single-shot mode)
+        if (Object.keys(parsedFiles).length > 0) {
+          try {
+            const wc = await getWebContainerWhenReady();
+            await runWriteFiles(
+              wc,
+              Object.entries(parsedFiles).map(([path, content]) => ({ path, content })),
+              filesRef.current
+            );
+          } catch {
+            // WebContainer may not be ready; finish will still save to DB
+          }
         }
 
         try {
@@ -272,7 +300,7 @@ export function useAgentStream({
           onError?.(err instanceof Error ? err.message : "Failed to save");
         }
       },
-      [projectId, onSaved, onError]
+      [projectId, onSaved, onError, getWebContainerWhenReady]
     ),
     onError: useCallback(
       (err: Error) => {
@@ -288,9 +316,12 @@ export function useAgentStream({
   }, [setMessages, messages]);
 
   const runAgent = useCallback(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[useAgentStream] runAgent/sendMessage", { status });
+    }
     filesRef.current = {};
     sendMessage();
-  }, [sendMessage]);
+  }, [sendMessage, status]);
 
   return {
     messages: chatMessages,

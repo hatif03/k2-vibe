@@ -130,4 +130,31 @@ export const messagesRouter = createTRPCRouter({
         },
       });
     }),
+
+  delete: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        projectId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const message = await prisma.message.findFirst({
+        where: {
+          id: input.id,
+          projectId: input.projectId,
+          project: { userId: ctx.auth.userId },
+        },
+      });
+
+      if (!message) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Message not found" });
+      }
+
+      await prisma.message.delete({
+        where: { id: input.id },
+      });
+
+      return { success: true };
+    }),
 });

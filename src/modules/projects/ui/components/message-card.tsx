@@ -61,6 +61,8 @@ interface AssistantMessageProps {
   isActiveFragment: boolean;
   onFragmentClick: (fragment: Fragment) => void;
   type: MessageType;
+  onRetry?: () => void;
+  isRetrying?: boolean;
 };
 
 const AssistantMessage = ({
@@ -70,7 +72,11 @@ const AssistantMessage = ({
   isActiveFragment,
   onFragmentClick,
   type,
+  onRetry,
+  isRetrying,
 }: AssistantMessageProps) => {
+  const isRetryableError = type === "ERROR" && onRetry;
+
   return (
     <div className={cn(
       "flex flex-col group px-2 pb-4",
@@ -91,6 +97,16 @@ const AssistantMessage = ({
       </div>
       <div className="pl-8.5 flex flex-col gap-y-4">
         <span>{content}</span>
+        {isRetryableError && (
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={isRetrying}
+            className="text-sm font-medium text-primary hover:underline w-fit disabled:opacity-50"
+          >
+            {isRetrying ? "Retrying…" : "Retry"}
+          </button>
+        )}
         {fragment && type === "RESULT" && (
           <FragmentCard
             fragment={fragment}
@@ -104,6 +120,7 @@ const AssistantMessage = ({
 };
 
 interface MessageCardProps {
+  id: string;
   content: string;
   role: MessageRole;
   fragment: Fragment | null;
@@ -111,9 +128,12 @@ interface MessageCardProps {
   isActiveFragment: boolean;
   onFragmentClick: (fragment: Fragment) => void;
   type: MessageType;
+  onRetry?: (messageId: string) => void;
+  isRetrying?: boolean;
 };
 
 export const MessageCard = ({
+  id,
   content,
   role,
   fragment,
@@ -121,6 +141,8 @@ export const MessageCard = ({
   isActiveFragment,
   onFragmentClick,
   type,
+  onRetry,
+  isRetrying,
 }: MessageCardProps) => {
   if (role === "ASSISTANT") {
     return (
@@ -131,6 +153,8 @@ export const MessageCard = ({
         isActiveFragment={isActiveFragment}
         onFragmentClick={onFragmentClick}
         type={type}
+        onRetry={type === "ERROR" ? () => onRetry?.(id) : undefined}
+        isRetrying={isRetrying}
       />
     )
   }

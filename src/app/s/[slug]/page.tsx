@@ -48,6 +48,7 @@ function ShareContent({ slug }: { slug: string }) {
             {project.messages.map((message) => (
               <MessageCard
                 key={message.id}
+                id={message.id}
                 content={message.content}
                 role={message.role}
                 fragment={message.fragment}

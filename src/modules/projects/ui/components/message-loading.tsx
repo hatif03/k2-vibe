@@ -37,6 +37,12 @@ const ShimmerMessages = ({
   );
 };
 
+export interface AgentStep {
+  id: string;
+  message: string;
+  done?: boolean;
+}
+
 interface MessageLoadingProps {
   streamingText?: string;
   statusMessage?: string;
@@ -44,6 +50,8 @@ interface MessageLoadingProps {
   error?: { message: string; onRetry?: () => void };
   /** Shown after timeout when thinking takes too long */
   timeoutMessage?: string;
+  /** Agent steps/calls to display */
+  steps?: AgentStep[];
 }
 
 export const MessageLoading = ({
@@ -51,6 +59,7 @@ export const MessageLoading = ({
   statusMessage,
   error,
   timeoutMessage,
+  steps = [],
 }: MessageLoadingProps) => {
   return (
     <div className="flex flex-col group px-2 pb-4">
@@ -82,7 +91,25 @@ export const MessageLoading = ({
           <p className="text-base text-muted-foreground">{streamingText}</p>
         ) : (
           <div className="flex flex-col gap-2">
-            <ShimmerMessages statusMessage={statusMessage} />
+            {steps.length > 0 ? (
+              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                {steps.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-start gap-2 text-sm text-muted-foreground"
+                  >
+                    <span className="shrink-0 mt-0.5">
+                      {s.done ? "✓" : "○"}
+                    </span>
+                    <span className={s.done ? "" : "animate-pulse"}>
+                      {s.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <ShimmerMessages statusMessage={statusMessage} />
+            )}
             {timeoutMessage && (
               <p className="text-sm text-muted-foreground">{timeoutMessage}</p>
             )}

@@ -1,10 +1,44 @@
 import { auth } from "@clerk/nextjs/server";
-import { generateText } from "ai";
-import { createK2Think, K2_THINK_MODEL } from "@/lib/k2-think";
 import { FRAGMENT_TITLE_PROMPT, RESPONSE_PROMPT } from "@/prompt";
+import { stripK2Thinking } from "@/lib/strip-k2-thinking";
 import { prisma } from "@/lib/db";
+import { getUserApiKey } from "@/lib/usage";
+import { flattenFileSystemTree } from "@/lib/template-flatten";
+import { WEBCONTAINER_TEMPLATE } from "@/lib/webcontainer-template";
 
 export const maxDuration = 30;
+
+async function callK2Chat(
+  apiKey: string,
+  system: string,
+  prompt: string,
+  maxTokens: number
+): Promise<string> {
+  const res = await fetch("https://api.k2think.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "MBZUAI-IFM/K2-Think-v2",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.3,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`K2 API error: ${res.status}`);
+  }
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+  return stripK2Thinking(raw);
+}
 
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -39,30 +73,43 @@ export async function POST(req: Request) {
     );
   }
 
-  const provider = createK2Think();
-  const model = provider(K2_THINK_MODEL);
+  const apiKey = (await getUserApiKey()) ?? process.env.K2_THINK_API_KEY;
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({ error: "K2 Think API key not configured" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   const wrappedSummary = `<task_summary>\n${taskSummary}\n</task_summary>`;
 
-  const [titleResult, responseResult] = await Promise.all([
-    generateText({
-      model,
-      system: FRAGMENT_TITLE_PROMPT,
-      prompt: wrappedSummary,
-      maxOutputTokens: 50,
-    }),
-    generateText({
-      model,
-      system: RESPONSE_PROMPT,
-      prompt: wrappedSummary,
-      maxOutputTokens: 200,
-    }),
-  ]);
+  let title = "Fragment";
+  let content = "Here's what I built for you.";
 
-  const title = titleResult.text.trim() || "Fragment";
-  const content = responseResult.text.trim() || "Here's what I built for you.";
+  try {
+    const [titleText, responseText] = await Promise.all([
+      callK2Chat(apiKey, FRAGMENT_TITLE_PROMPT, wrappedSummary, 50),
+      callK2Chat(apiKey, RESPONSE_PROMPT, wrappedSummary, 200),
+    ]);
+    if (titleText) title = titleText;
+    if (responseText) content = responseText;
+  } catch (err) {
+    console.error("[agent/finish] K2 API error:", err);
+    // Continue with fallback title/content
+  }
 
-  const isError = Object.keys(files ?? {}).length === 0;
+  // Filter out empty or whitespace-only files
+  const validFiles = Object.fromEntries(
+    Object.entries(files ?? {}).filter(
+      ([, content]) => typeof content === "string" && content.trim().length > 0
+    )
+  );
+
+  // Merge template + generated files so the sandbox has a complete runnable project
+  const templateFlat = flattenFileSystemTree(WEBCONTAINER_TEMPLATE);
+  const mergedFiles = { ...templateFlat, ...validFiles };
+
+  const isError = Object.keys(validFiles).length === 0;
 
   if (isError) {
     await prisma.message.create({
@@ -84,7 +131,7 @@ export async function POST(req: Request) {
           create: {
             sandboxUrl: "",
             title,
-            files: files ?? {},
+            files: mergedFiles,
           },
         },
       },

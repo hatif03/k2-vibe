@@ -6,8 +6,9 @@ import {
   convertToModelMessages,
   stepCountIs,
 } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { createK2Think, K2_THINK_MODEL } from "@/lib/k2-think";
-import { PROMPT } from "@/prompt";
+import { PROMPT, PROMPT_SINGLE_SHOT } from "@/prompt";
 import { consumeCredits } from "@/lib/usage";
 
 const agentTools = {
@@ -66,7 +67,10 @@ const agentTools = {
 
 export const maxDuration = 60;
 
+const DEBUG = process.env.AGENT_DEBUG === "1";
+
 export async function POST(req: Request) {
+  if (DEBUG) console.log("[agent/stream] POST received");
   const body = await req.json();
   const { messages, projectId } = body as {
     messages: Array<{ role: string; parts?: Array<{ type: string; text?: string }>; content?: string }>;
@@ -74,6 +78,7 @@ export async function POST(req: Request) {
   };
 
   if (!projectId || !messages?.length) {
+    if (DEBUG) console.log("[agent/stream] 400: missing projectId or messages");
     return new Response(
       JSON.stringify({ error: "projectId and messages required" }),
       { status: 400, headers: { "Content-Type": "application/json" } }
@@ -82,10 +87,12 @@ export async function POST(req: Request) {
 
   let userApiKey: string | undefined;
   try {
+    if (DEBUG) console.log("[agent/stream] consuming credits");
     const credits = await consumeCredits();
     userApiKey = credits.userApiKey;
   } catch (err) {
     if (err instanceof Error && err.message === "TOO_MANY_REQUESTS") {
+      if (DEBUG) console.log("[agent/stream] 429: out of credits");
       return new Response(
         JSON.stringify({
           error: "You have run out of credits. Add your API key in settings.",
@@ -96,8 +103,22 @@ export async function POST(req: Request) {
     throw err;
   }
 
-  const provider = createK2Think(userApiKey);
-  const model = provider(K2_THINK_MODEL);
+  // Optional: use AGENT_MODEL env (e.g. "openai:gpt-4o") for tool-calling models
+  // K2 Think has no tool support — we use single-shot mode (text output with file blocks)
+  const agentModelEnv = process.env.AGENT_MODEL;
+  const useTools = agentModelEnv?.startsWith("openai:");
+
+  let model: ReturnType<ReturnType<typeof createK2Think>>;
+  if (useTools) {
+    const openaiModel = agentModelEnv!.replace(/^openai:/, "");
+    const openai = createOpenAI({
+      apiKey: userApiKey ?? process.env.OPENAI_API_KEY,
+    });
+    model = openai(openaiModel);
+  } else {
+    const provider = createK2Think(userApiKey);
+    model = provider(K2_THINK_MODEL);
+  }
 
   const uiMessages = messages.map((m) => ({
     role: m.role.toLowerCase() as "user" | "assistant" | "system",
@@ -108,19 +129,26 @@ export async function POST(req: Request) {
         : []),
   }));
 
-  const coreMessages = await convertToModelMessages(uiMessages as never, {
-    tools: agentTools,
-  });
+  const coreMessages = useTools
+    ? await convertToModelMessages(uiMessages as never, { tools: agentTools })
+    : uiMessages.map((m) => ({
+        role: m.role as "user" | "assistant" | "system",
+        content: m.parts?.map((p) => ("text" in p ? p.text : "")).join("") ?? "",
+      }));
 
+  if (DEBUG) console.log("[agent/stream] starting streamText", { useTools });
   const result = streamText({
     model,
-    system: PROMPT,
+    system: useTools ? PROMPT : PROMPT_SINGLE_SHOT,
     messages: coreMessages,
-    tools: agentTools,
-    stopWhen: stepCountIs(15),
+    ...(useTools && {
+      tools: agentTools,
+      stopWhen: stepCountIs(15),
+    }),
     maxOutputTokens: 32768,
     temperature: 0.1,
   });
 
+  if (DEBUG) console.log("[agent/stream] returning stream response");
   return result.toUIMessageStreamResponse();
 }

@@ -1,0 +1,39 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { TerminalIcon } from "lucide-react";
+import { useWebContainerOptional } from "@/app/providers/webcontainer-provider";
+
+export function TerminalPanel() {
+  const wc = useWebContainerOptional();
+  const preRef = useRef<HTMLPreElement>(null);
+  const terminalOutput = wc?.terminalOutput ?? "";
+
+  useEffect(() => {
+    if (preRef.current) {
+      preRef.current.scrollTop = preRef.current.scrollHeight;
+    }
+  }, [terminalOutput]);
+
+  return (
+    <div className="flex h-full flex-col bg-[#0d1117]">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+        <TerminalIcon className="size-4 text-muted-foreground" />
+        <span className="text-sm font-medium text-muted-foreground">
+          WebContainer output
+        </span>
+      </div>
+      <pre
+        ref={preRef}
+        className="flex-1 overflow-auto p-4 font-mono text-xs text-[#c9d1d9] whitespace-pre-wrap break-words"
+        style={{ minHeight: 200 }}
+      >
+        {terminalOutput || (
+          <span className="text-muted-foreground">
+            Terminal output will appear here when the project starts...
+          </span>
+        )}
+      </pre>
+    </div>
+  );
+}

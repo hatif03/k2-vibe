@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
 import { useTRPC } from "@/trpc/client";
 import type { Fragment } from "@prisma/client";
@@ -20,8 +20,10 @@ export const MessagesContainer = ({
   setActiveFragment,
 }: Props) => {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastAssistantMessageIdRef = useRef<string | null>(null);
+  const [retryRequested, setRetryRequested] = useState(false);
 
   const { data: messages } = useSuspenseQuery(
     trpc.messages.getMany.queryOptions(
@@ -29,6 +31,13 @@ export const MessagesContainer = ({
       { refetchInterval: 2000 }
     )
   );
+
+  const deleteMessage = useMutation(trpc.messages.delete.mutationOptions({
+    onSuccess: () => {
+      queryClient.invalidateQueries(trpc.messages.getMany.queryOptions({ projectId }));
+      setRetryRequested(true);
+    },
+  }));
 
   useEffect(() => {
     const lastAssistantMessage = messages.findLast(
@@ -57,6 +66,10 @@ export const MessagesContainer = ({
     content: m.content,
   }));
 
+  const handleRetry = (errorMessageId: string) => {
+    deleteMessage.mutate({ id: errorMessageId, projectId });
+  };
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 min-h-0 overflow-y-auto">
@@ -64,6 +77,7 @@ export const MessagesContainer = ({
           {messages.map((message) => (
             <MessageCard
               key={message.id}
+              id={message.id}
               content={message.content}
               role={message.role}
               fragment={message.fragment}
@@ -71,6 +85,8 @@ export const MessagesContainer = ({
               isActiveFragment={activeFragment?.id === message.fragment?.id}
               onFragmentClick={() => setActiveFragment(message.fragment)}
               type={message.type}
+              onRetry={handleRetry}
+              isRetrying={deleteMessage.isPending}
             />
           ))}
           {messages.length > 0 && (
@@ -78,6 +94,8 @@ export const MessagesContainer = ({
               projectId={projectId}
               messages={uiMessages}
               isLastMessageUser={isLastMessageUser}
+              retryRequested={retryRequested}
+              onRetryComplete={() => setRetryRequested(false)}
             />
           )}
           <div ref={bottomRef} />

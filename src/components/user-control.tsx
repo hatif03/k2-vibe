@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { dark } from "@clerk/themes";
 import { UserButton } from "@clerk/nextjs";
 
@@ -10,7 +11,17 @@ interface Props {
 };
 
 export const UserControl = ({ showName }: Props) => {
+  const [mounted, setMounted] = useState(false);
   const currentTheme = useCurrentTheme();
+
+  useEffect(() => setMounted(true), []);
+
+  // Avoid hydration mismatch: Clerk UserButton + useCurrentTheme differ on server vs client
+  if (!mounted) {
+    return (
+      <div className="size-8 rounded-md bg-muted animate-pulse" aria-hidden />
+    );
+  }
 
   return (
     <UserButton

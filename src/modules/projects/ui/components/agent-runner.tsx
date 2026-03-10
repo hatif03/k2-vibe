@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 import { useWebContainerOptional } from "@/app/providers/webcontainer-provider";
-import { useAgentStream } from "@/hooks/use-agent-stream";
+import { useAgentStatus, useSetAgentStatus, useAgentSteps } from "@/app/providers/agent-status-provider";
+import { useAgentGenerate, MAX_FIX_RETRIES } from "@/hooks/use-agent-generate";
 import { useTRPC } from "@/trpc/client";
 
 import { MessageLoading } from "./message-loading";
@@ -17,12 +18,16 @@ interface Props {
   projectId: string;
   messages: Array<{ id: string; role: string; content: string }>;
   isLastMessageUser: boolean;
+  retryRequested?: boolean;
+  onRetryComplete?: () => void;
 }
 
 export function AgentRunner({
   projectId,
   messages,
   isLastMessageUser,
+  retryRequested = false,
+  onRetryComplete,
 }: Props) {
   const wc = useWebContainerOptional();
   const trpc = useTRPC();
@@ -32,15 +37,21 @@ export function AgentRunner({
   const wcErrorToastShownRef = useRef(false);
   const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
 
+  const setAgentStatus = useSetAgentStatus();
+  const { agentStatus } = useAgentStatus();
+  const { addStep, clearSteps } = useAgentSteps();
   const getWebContainerWhenReady = useCallback(() => {
     if (!wc) return Promise.reject(new Error("WebContainer not available"));
     return wc.getWebContainerWhenReady();
   }, [wc]);
 
-  const { status, runAgent } = useAgentStream({
+  const { status, fixAttempt, runAgent } = useAgentGenerate({
     projectId,
     messages,
+    boot: wc?.boot ?? (() => Promise.resolve(null)),
     getWebContainerWhenReady,
+    getTerminalOutput: () => wc?.terminalOutput ?? "",
+    onStep: addStep,
     onSaved: () => {
       queryClient.invalidateQueries(
         trpc.messages.getMany.queryOptions({ projectId })
@@ -53,6 +64,14 @@ export function AgentRunner({
     },
   });
 
+  useEffect(() => {
+    setAgentStatus((prev) => ({ ...prev, status, fixAttempt }));
+  }, [status, fixAttempt, setAgentStatus]);
+
+  useEffect(() => {
+    if (status === "submitted") clearSteps();
+  }, [status, clearSteps]);
+
   // Reset toast ref when WebContainer recovers (e.g. after retry)
   useEffect(() => {
     if (wc?.state.status !== "error") {
@@ -61,13 +80,13 @@ export function AgentRunner({
   }, [wc?.state.status]);
 
   useEffect(() => {
-    if (!isLastMessageUser || !messages.length || !wc) return;
+    if (!isLastMessageUser || !messages.length) return;
     const lastMsg = messages[messages.length - 1];
     if (lastMsg.role !== "USER") return;
-    if (lastHandledRef.current === lastMsg.id) return;
+    if (!retryRequested && lastHandledRef.current === lastMsg.id) return;
     if (status !== "ready" && status !== undefined) return;
 
-    if (wc.state.status === "error") {
+    if (wc?.state.status === "error") {
       if (!wcErrorToastShownRef.current) {
         wcErrorToastShownRef.current = true;
         toast.error("WebContainer failed to start");
@@ -75,10 +94,13 @@ export function AgentRunner({
       return;
     }
 
+    if (retryRequested) {
+      lastHandledRef.current = null;
+      onRetryComplete?.();
+    }
     lastHandledRef.current = lastMsg.id;
-    wc.boot();
     runAgent();
-  }, [isLastMessageUser, messages, status, wc, runAgent]);
+  }, [isLastMessageUser, messages, status, wc, runAgent, retryRequested, onRetryComplete]);
 
   useEffect(() => {
     if (!isLastMessageUser && messages.length > 0) {
@@ -120,14 +142,17 @@ export function AgentRunner({
   const loadingMessage =
     wc?.state.status === "booting" || wc?.state.status === "mounting"
       ? "Starting environment..."
-      : status === "streaming" || status === "submitted"
-        ? "Building..."
-        : "Thinking...";
+      : fixAttempt > 0
+        ? `Fixing issues… (attempt ${fixAttempt} of ${MAX_FIX_RETRIES})`
+        : status === "streaming" || status === "submitted"
+          ? "Building..."
+          : "Thinking...";
 
   return (
     <MessageLoading
       streamingText={status === "streaming" ? "..." : undefined}
       statusMessage={loadingMessage}
+      steps={agentStatus?.steps ?? []}
       timeoutMessage={
         showTimeoutMessage
           ? "This is taking longer than usual. Check your connection or try again."

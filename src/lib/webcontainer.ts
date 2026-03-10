@@ -21,15 +21,21 @@ export function getWebContainer(): WebContainer | null {
   return instance;
 }
 
+export interface MountOptions {
+  onOutput?: (data: string) => void;
+}
+
 /**
  * Mount the Next.js template and start the dev server.
- * Returns a promise that resolves with the preview URL when server is ready.
+ * Uses next dev (no Turbopack) for WebContainer compatibility.
  */
 export async function mountAndStartDevServer(
   wc: WebContainer,
-  onServerReady?: (port: number, url: string) => void
+  onServerReady?: (port: number, url: string) => void,
+  options?: MountOptions
 ): Promise<string> {
   await wc.mount(WEBCONTAINER_TEMPLATE);
+  const onOutput = options?.onOutput;
 
   return new Promise((resolve, reject) => {
     const handleServerReady = (port: number, url: string) => {
@@ -42,13 +48,24 @@ export async function mountAndStartDevServer(
     (async () => {
       try {
         const install = await wc.spawn("npm", ["install"]);
+        if (onOutput) {
+          const decoder = new TextDecoder();
+          install.output.pipeTo(new WritableStream({
+            write: (d) => onOutput(typeof d === "string" ? d : decoder.decode(d)),
+          }));
+        }
         const installExit = await install.exit;
         if (installExit !== 0) {
           reject(new Error(`npm install failed with exit code ${installExit}`));
           return;
         }
-
-        await wc.spawn("npm", ["run", "dev"]);
+        const dev = await wc.spawn("npm", ["run", "dev"]);
+        if (onOutput) {
+          const decoder = new TextDecoder();
+          dev.output.pipeTo(new WritableStream({
+            write: (d) => onOutput(typeof d === "string" ? d : decoder.decode(d)),
+          }));
+        }
       } catch (err) {
         reject(err);
       }
@@ -62,10 +79,12 @@ export async function mountAndStartDevServer(
 export async function mountFilesAndStartDevServer(
   wc: WebContainer,
   files: Record<string, string>,
-  onServerReady?: (port: number, url: string) => void
+  onServerReady?: (port: number, url: string) => void,
+  options?: MountOptions
 ): Promise<string> {
   const tree = filesToFileSystemTree(files);
   await wc.mount(tree);
+  const onOutput = options?.onOutput;
 
   return new Promise((resolve, reject) => {
     wc.on("server-ready", (port: number, url: string) => {
@@ -76,12 +95,24 @@ export async function mountFilesAndStartDevServer(
     (async () => {
       try {
         const install = await wc.spawn("npm", ["install"]);
+        if (onOutput) {
+          const decoder = new TextDecoder();
+          install.output.pipeTo(new WritableStream({
+            write: (d) => onOutput(typeof d === "string" ? d : decoder.decode(d)),
+          }));
+        }
         const installExit = await install.exit;
         if (installExit !== 0) {
           reject(new Error(`npm install failed with exit code ${installExit}`));
           return;
         }
-        await wc.spawn("npm", ["run", "dev"]);
+        const dev = await wc.spawn("npm", ["run", "dev"]);
+        if (onOutput) {
+          const decoder = new TextDecoder();
+          dev.output.pipeTo(new WritableStream({
+            write: (d) => onOutput(typeof d === "string" ? d : decoder.decode(d)),
+          }));
+        }
       } catch (err) {
         reject(err);
       }

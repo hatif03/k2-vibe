@@ -28,6 +28,7 @@ interface WebContainerContextValue {
   boot: (files?: Record<string, string>) => Promise<WebContainer | null>;
   getWebContainerWhenReady: () => Promise<WebContainer>;
   setPreviewUrl: (url: string) => void;
+  terminalOutput: string;
 }
 
 const WebContainerContext = createContext<WebContainerContextValue | null>(null);
@@ -58,6 +59,7 @@ export function WebContainerProvider({
   bootOnMount = false,
 }: Props) {
   const [state, setState] = useState<WebContainerState>({ status: "idle" });
+  const [terminalOutput, setTerminalOutput] = useState("");
   const bootPromiseRef = useRef<Promise<WebContainer | null> | null>(null);
 
   const boot = useCallback(async (files?: Record<string, string>) => {
@@ -74,26 +76,42 @@ export function WebContainerProvider({
 
     const promise = (async () => {
       setState({ status: "booting" });
+      setTerminalOutput("");
       try {
         const wc = await bootWebContainer();
         setState({ status: "mounting" });
 
+        const mountOptions = {
+          onOutput: (data: string) => {
+            setTerminalOutput((prev) => prev + data);
+          },
+        };
+
         const url =
           filesToMount && Object.keys(filesToMount).length > 0
-            ? await mountFilesAndStartDevServer(wc, filesToMount, (_, url) => {
-                setState((s) =>
-                  s.status === "ready"
-                    ? s
-                    : { status: "ready", instance: wc, previewUrl: url }
-                );
-              })
-            : await mountAndStartDevServer(wc, (_, url) => {
-                setState((s) =>
-                  s.status === "ready"
-                    ? s
-                    : { status: "ready", instance: wc, previewUrl: url }
-                );
-              });
+            ? await mountFilesAndStartDevServer(
+                wc,
+                filesToMount,
+                (_, url) => {
+                  setState((s) =>
+                    s.status === "ready"
+                      ? s
+                      : { status: "ready", instance: wc, previewUrl: url }
+                  );
+                },
+                mountOptions
+              )
+            : await mountAndStartDevServer(
+                wc,
+                (_, url) => {
+                  setState((s) =>
+                    s.status === "ready"
+                      ? s
+                      : { status: "ready", instance: wc, previewUrl: url }
+                  );
+                },
+                mountOptions
+              );
 
         setState({ status: "ready", instance: wc, previewUrl: url });
         return wc;
@@ -111,6 +129,7 @@ export function WebContainerProvider({
 
     bootPromiseRef.current = promise;
     return promise;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- state.instance excluded to avoid boot thrashing when instance ref changes
   }, [state.status, initialFiles]);
 
   const instance = state.status === "ready" ? state.instance : null;
@@ -143,7 +162,15 @@ export function WebContainerProvider({
   }, [bootOnMount, boot, initialFiles]);
 
   return (
-    <WebContainerContext.Provider value={{ state, boot, getWebContainerWhenReady, setPreviewUrl }}>
+    <WebContainerContext.Provider
+      value={{
+        state,
+        boot,
+        getWebContainerWhenReady,
+        setPreviewUrl,
+        terminalOutput,
+      }}
+    >
       {children}
     </WebContainerContext.Provider>
   );

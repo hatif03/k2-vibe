@@ -56,7 +56,9 @@ export function PreviewPanel({ fragment }: Props) {
     return (
       <div className="flex flex-col w-full h-full items-center justify-center gap-4">
         <Loader2Icon className="size-8 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Starting preview...</p>
+        <p className="text-sm text-muted-foreground">
+          {fragment?.files ? "Loading saved app..." : "Starting preview..."}
+        </p>
       </div>
     );
   }
@@ -66,7 +68,9 @@ export function PreviewPanel({ fragment }: Props) {
       <div className="flex flex-col w-full h-full items-center justify-center p-8 text-center">
         <p className="text-muted-foreground">No preview yet</p>
         <p className="text-sm text-muted-foreground mt-2">
-          Create a project or wait for the agent to finish.
+          {fragment?.files
+            ? "Your app is saved. The preview environment is starting."
+            : "Create a project or wait for the agent to finish."}
         </p>
       </div>
     );
