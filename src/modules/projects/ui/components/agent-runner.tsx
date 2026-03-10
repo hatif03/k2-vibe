@@ -42,7 +42,7 @@ export function AgentRunner({
 
   const setAgentStatus = useSetAgentStatus();
   const setTriggerFix = useSetAgentTriggerFix();
-  const { agentStatus } = useAgentStatus();
+  const agentStatus = useAgentStatus();
   const { addStep, clearSteps } = useAgentSteps();
   const getWebContainerWhenReady = useCallback(() => {
     if (!wc) return Promise.reject(new Error("WebContainer not available"));
