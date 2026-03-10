@@ -33,10 +33,10 @@ K2 Vibe is a **chat-driven app builder** where you describe what you want to bui
 ```mermaid
 flowchart TB
     subgraph Client["Browser (Client)"]
-        UI[Next.js App]
-        WC[WebContainer API]
-        Preview[Live Preview iframe]
-        Terminal[Terminal Output]
+        UI["Next.js App"]
+        WC["WebContainer API"]
+        Preview["Live Preview iframe"]
+        Terminal["Terminal Output"]
         
         UI --> WC
         WC --> Preview
@@ -44,18 +44,18 @@ flowchart TB
     end
     
     subgraph Server["Next.js Server"]
-        API[API Routes]
-        tRPC[tRPC]
-        Prisma[Prisma ORM]
+        API["API Routes"]
+        tRPC["tRPC"]
+        Prisma["Prisma ORM"]
         
         API --> Prisma
         tRPC --> Prisma
     end
     
     subgraph External["External Services"]
-        K2[K2 Think API]
-        Clerk[Clerk Auth]
-        DB[(PostgreSQL/Supabase)]
+        K2["K2 Think API"]
+        Clerk["Clerk Auth"]
+        DB["PostgreSQL/Supabase"]
     end
     
     UI --> API
@@ -70,21 +70,21 @@ flowchart TB
 ```mermaid
 flowchart LR
     subgraph UserFlow["User Flow"]
-        A[Describe project] --> B[Create project]
-        B --> C[Send message]
-        C --> D[Agent generates code]
-        D --> E[Preview updates]
-        E --> F[Iterate or fix]
+        A["Describe project"] --> B["Create project"]
+        B --> C["Send message"]
+        C --> D["Agent generates code"]
+        D --> E["Preview updates"]
+        E --> F["Iterate or fix"]
     end
     
     subgraph AgentFlow["Agent Flow"]
-        M[User message] --> G[/api/agent/generate]
-        G --> H[K2 Think API]
-        H --> I[Parse file blocks]
-        I --> J[WebContainer write]
-        J --> K[Compile & check]
+        M["User message"] --> G["api/agent/generate"]
+        G --> H["K2 Think API"]
+        H --> I["Parse file blocks"]
+        I --> J["WebContainer write"]
+        J --> K["Compile & check"]
         K -->|errors| G
-        K -->|success| L[/api/agent/finish]
+        K -->|success| L["api/agent/finish"]
     end
 ```
 
@@ -93,23 +93,23 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph Modules["Feature Modules"]
-        Home[home - Projects list, create form]
-        Projects[projects - Project CRUD, view]
-        Messages[messages - Chat CRUD]
-        Settings[settings - API keys, Vercel token]
-        Shares[shares - Public share by slug]
-        Usage[usage - Credits, rate limiting]
+        Home["home - Projects list, create form"]
+        Projects["projects - Project CRUD, view"]
+        Messages["messages - Chat CRUD"]
+        Settings["settings - API keys, Vercel token"]
+        Shares["shares - Public share by slug"]
+        Usage["usage - Credits, rate limiting"]
     end
     
     subgraph Core["Core Infrastructure"]
-        Agent[Agent Runner]
-        WebContainer[WebContainer Provider]
-        AgentStatus[Agent Status Provider]
+        Agent["Agent Runner"]
+        WebContainer["WebContainer Provider"]
+        AgentStatus["Agent Status Provider"]
     end
     
     subgraph API["API Layer"]
-        AgentAPI[/api/agent/*]
-        tRPC[tRPC routers]
+        AgentAPI["api/agent/*"]
+        tRPC["tRPC routers"]
     end
     
     Projects --> Agent
